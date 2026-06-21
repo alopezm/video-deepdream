@@ -98,6 +98,7 @@ Run the tool using the virtual environment's Python interpreter:
 | `--fps` | | *Source FPS* | Override the frame rate of the output video. |
 | `--max-duration`| | `None` | Limit the output video duration in seconds (stops processing early). |
 | `--pattern-scale-width`| | `320` | Reference width for pattern scaling. Keeps style waves/details consistent regardless of output resolution (set to 0 to disable). |
+| `--use-flow` | `-f` | `False` | Use optical flow warping to make dream patterns follow the movement of objects in the video (requires -b > 0). |
 
 ---
 

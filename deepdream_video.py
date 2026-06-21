@@ -283,6 +283,8 @@ def main():
                         help="Blend factor (0.0 to 1.0) with the previous dream frame for temporal consistency (e.g., 0.8)")
     parser.add_argument('--pattern-scale-width', type=int, default=320,
                         help="Reference width for pattern scaling. Keeps pattern size consistent regardless of output resolution (set to 0 to disable)")
+    parser.add_argument('--use-flow', '-f', action='store_true',
+                        help="Use optical flow to warp the previous frame's patterns so they follow moving objects (requires -b > 0)")
     
     args = parser.parse_args()
     
@@ -394,6 +396,7 @@ def main():
     frame_idx = 0
     start_processing_time = time.time()
     previous_dream = None
+    previous_raw_gray = None
 
     try:
         while cap.isOpened():
@@ -409,9 +412,35 @@ def main():
             if target_width != width or target_height != height:
                 frame = cv2.resize(frame, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
             
+            # Convert current frame to grayscale for optical flow
+            curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
             # Blend with previous frame if consistency blending is active
             if args.blend_alpha > 0.0 and previous_dream is not None:
-                frame = cv2.addWeighted(previous_dream, args.blend_alpha, frame, 1.0 - args.blend_alpha, 0.0)
+                if args.use_flow and previous_raw_gray is not None:
+                    # Calculate Farneback optical flow from previous to current frame
+                    flow = cv2.calcOpticalFlowFarneback(
+                        previous_raw_gray, curr_gray, None, 
+                        pyr_scale=0.5, levels=3, winsize=15, 
+                        iterations=3, poly_n=5, poly_sigma=1.2, flags=0
+                    )
+                    h, w = flow.shape[:2]
+                    grid_y, grid_x = np.mgrid[0:h, 0:w].astype(np.float32)
+                    map_x = grid_x + flow[..., 0]
+                    map_y = grid_y + flow[..., 1]
+                    
+                    # Warp the previous dream frame to follow the optical flow
+                    warped_previous = cv2.remap(
+                        previous_dream, map_x, map_y, 
+                        cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT
+                    )
+                    frame = cv2.addWeighted(warped_previous, args.blend_alpha, frame, 1.0 - args.blend_alpha, 0.0)
+                else:
+                    frame = cv2.addWeighted(previous_dream, args.blend_alpha, frame, 1.0 - args.blend_alpha, 0.0)
+            
+            # Save current raw grayscale for next frame's optical flow
+            if args.blend_alpha > 0.0 and args.use_flow:
+                previous_raw_gray = curr_gray.copy()
             
             # 2. Convert BGR (OpenCV standard) to RGB (TensorFlow/Dream standard)
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype(np.float32)

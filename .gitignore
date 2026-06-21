@@ -1,0 +1,31 @@
+# Python Caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Project Outputs (generated videos)
+output/
+
+# Source and Test Videos
+*.mov
+*.mp4
+*.avi
+*.mkv
+
+# macOS system files
+.DS_Store
+
+# IDE / Editor configuration
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

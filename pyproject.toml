@@ -1,0 +1,12 @@
+[project]
+name = "video-deepdream"
+version = "0.1.0"
+description = "CLI tool to apply DeepDream effect to videos"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "tensorflow>=2.10.0",
+    "opencv-python>=4.6.0.66",
+    "numpy>=1.22.0",
+    "tqdm>=4.64.0",
+]

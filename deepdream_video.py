@@ -285,6 +285,10 @@ def main():
                         help="Reference width for pattern scaling. Keeps pattern size consistent regardless of output resolution (set to 0 to disable)")
     parser.add_argument('--use-flow', '-f', action='store_true',
                         help="Use optical flow to warp the previous frame's patterns so they follow moving objects (requires -b > 0)")
+    parser.add_argument('--contrast-boost', type=float, default=1.0,
+                        help="Boost contrast of the frame before dreaming (e.g., 1.2 or 1.5)")
+    parser.add_argument('--saturation-boost', type=float, default=1.0,
+                        help="Boost saturation of the frame before dreaming (e.g., 1.3 or 1.6)")
     
     args = parser.parse_args()
     
@@ -418,9 +422,9 @@ def main():
             # Blend with previous frame if consistency blending is active
             if args.blend_alpha > 0.0 and previous_dream is not None:
                 if args.use_flow and previous_raw_gray is not None:
-                    # Calculate Farneback optical flow from previous to current frame
+                    # Calculate Farneback optical flow from current to previous frame (backward flow)
                     flow = cv2.calcOpticalFlowFarneback(
-                        previous_raw_gray, curr_gray, None, 
+                        curr_gray, previous_raw_gray, None, 
                         pyr_scale=0.5, levels=3, winsize=15, 
                         iterations=3, poly_n=5, poly_sigma=1.2, flags=0
                     )
@@ -441,6 +445,16 @@ def main():
             # Save current raw grayscale for next frame's optical flow
             if args.blend_alpha > 0.0 and args.use_flow:
                 previous_raw_gray = curr_gray.copy()
+
+            # Apply contrast and saturation boost if requested
+            if args.contrast_boost != 1.0 or args.saturation_boost != 1.0:
+                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV).astype(np.float32)
+                if args.saturation_boost != 1.0:
+                    hsv[..., 1] = np.clip(hsv[..., 1] * args.saturation_boost, 0, 255)
+                frame = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+                
+                if args.contrast_boost != 1.0:
+                    frame = np.clip((frame.astype(np.float32) - 127.5) * args.contrast_boost + 127.5, 0, 255).astype(np.uint8)
             
             # 2. Convert BGR (OpenCV standard) to RGB (TensorFlow/Dream standard)
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype(np.float32)
